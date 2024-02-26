@@ -41,6 +41,7 @@ public class Condition2 {
     this.waitQueue.waitForAccess(KThread.currentThread());
     KThread.sleep();
     Machine.interrupt().restore(status);
+
 	conditionLock.acquire();
     }
 
@@ -50,14 +51,20 @@ public class Condition2 {
      */
     public void wake() {
 	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+    KThread k = waitQueue.nextThread();
+    if (k != null) {
+            k.ready();
+        }
     }
-
     /**
      * Wake up all threads sleeping on this condition variable. The current
      * thread must hold the associated lock.
      */
     public void wakeAll() {
 	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+    for (KThread k = waitQueue.nextThread(); k != null; k = waitQueue.nextThread()) {
+        k.ready();
+    }
     }
 
     private Lock conditionLock;

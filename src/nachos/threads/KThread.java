@@ -185,25 +185,26 @@ public class KThread {
      * destroyed automatically by the next thread to run, when it is safe to
      * delete this thread.
      */
-    public static void finish() {
-	Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
-	
-	Machine.interrupt().disable();
+	public static void finish() {
+		Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
 
-	Machine.autoGrader().finishingCurrentThread();
+		Machine.interrupt().disable();
 
-	Lib.assertTrue(toBeDestroyed == null);
-	toBeDestroyed = currentThread;
+		Machine.autoGrader().finishingCurrentThread();
+
+		Lib.assertTrue(toBeDestroyed == null);
+		toBeDestroyed = currentThread;
 
 
-	currentThread.status = statusFinished;
-	if (sleepLock.isHeldByCurrentThread()) {
-			sleepLock.acquire();
-			sleepCondition.wakeAll();
-			sleepLock.release();
-			sleep();
+		currentThread.status = statusFinished;
+		if (currentThread().sleepLock.isHeldByCurrentThread()) {
+			currentThread().sleepLock.acquire();
+			currentThread().sleepCondition.wakeAll();
+			currentThread().sleepLock.release();
 		}
-    }
+		sleep();
+	}
+
 
     /**
      * Relinquish the CPU if any other thread is ready to run. If so, put the
@@ -292,8 +293,7 @@ public class KThread {
 
 	sleepLock.acquire();
 	sleepCondition.sleep();
-
-
+	sleepLock.release();
     }
 
     /**
@@ -463,7 +463,7 @@ public class KThread {
     private static KThread idleThread = null;
 
 	// for .join()
-	private static Lock sleepLock = null;
+	private Lock sleepLock = null;
 
-	private static Condition sleepCondition = null;
+	private Condition sleepCondition = null;
 }
