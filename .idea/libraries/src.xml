@@ -1,0 +1,22 @@
+<component name="libraryTable">
+  <library name="src">
+    <CLASSES />
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/annotations/DependencyChecker/PluginChecker/src" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/annotations/DependencyChecker/Plugins/src" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/annotations/Validator/src" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/forkjoin/mergesort" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/jmx/jmx-scandir/src" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/jmx/jmx-scandir/test" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/lambda/BulkDataOperations/src" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/lambda/DefaultMethods" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/nio/chatserver" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/nio/file" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/nio/multicast" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/nio/server" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/scripting/scriptpad/src" />
+      <root url="file://$USER_HOME$/.jdks/jdk8u402-b06/sample/try-with-resources/src" />
+    </SOURCES>
+  </library>
+</component>
