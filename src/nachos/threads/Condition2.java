@@ -51,10 +51,12 @@ public class Condition2 {
      */
     public void wake() {
 	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+    boolean status = Machine.interrupt().disable();
     KThread k = waitQueue.nextThread();
     if (k != null) {
             k.ready();
         }
+    Machine.interrupt().restore(status);
     }
     /**
      * Wake up all threads sleeping on this condition variable. The current
@@ -62,9 +64,16 @@ public class Condition2 {
      */
     public void wakeAll() {
 	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+    boolean status = Machine.interrupt().disable();
     for (KThread k = waitQueue.nextThread(); k != null; k = waitQueue.nextThread()) {
         k.ready();
+        Machine.interrupt().restore(status);
+        status = Machine.interrupt().disable();
     }
+
+        Machine.interrupt().restore(status);
+
+
     }
 
     private Lock conditionLock;

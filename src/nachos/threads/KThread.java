@@ -197,7 +197,7 @@ public class KThread {
 
 
 		currentThread.status = statusFinished;
-		if (currentThread().sleepLock.isHeldByCurrentThread()) {
+		if (currentThread().sleepLock != null && currentThread().sleepLock.isHeldByCurrentThread()) {
 			currentThread().sleepLock.acquire();
 			currentThread().sleepCondition.wakeAll();
 			currentThread().sleepLock.release();
