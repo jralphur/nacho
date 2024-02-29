@@ -57,9 +57,9 @@ public class KThread {
 
 	    createIdleThread();
 
+	}
 		sleepLock = new Lock();
 		sleepCondition = new Condition(sleepLock);
-	}
     }
 
 
@@ -196,9 +196,9 @@ public class KThread {
 		toBeDestroyed = currentThread;
 
 
+		currentThread().sleepLock.acquire();
 		currentThread.status = statusFinished;
-		if (currentThread().sleepLock != null && currentThread().sleepLock.isHeldByCurrentThread()) {
-			currentThread().sleepLock.acquire();
+		if (currentThread().sleepLock.isHeldByCurrentThread()) {
 			currentThread().sleepCondition.wakeAll();
 			currentThread().sleepLock.release();
 		}
@@ -291,9 +291,13 @@ public class KThread {
 
 	Lib.assertTrue(this != currentThread);
 
-	sleepLock.acquire();
-	sleepCondition.sleep();
-	sleepLock.release();
+	this.sleepLock = currentThread().sleepLock;
+	this.sleepCondition = currentThread().sleepCondition;
+	if (this.status != statusFinished) {
+		currentThread.sleepLock.acquire();
+		currentThread.sleepCondition.sleep();
+		currentThread.sleepLock.release();
+	}
     }
 
     /**
