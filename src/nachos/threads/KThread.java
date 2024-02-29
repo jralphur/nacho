@@ -298,6 +298,9 @@ public class KThread {
 		currentThread.sleepCondition.sleep();
 		currentThread.sleepLock.release();
 	}
+
+	this.sleepLock = new Lock();
+	this.sleepCondition = new Condition(this.sleepLock);
     }
 
     /**
