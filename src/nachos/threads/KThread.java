@@ -196,12 +196,10 @@ public class KThread {
 		toBeDestroyed = currentThread;
 
 
-		currentThread().sleepLock.acquire();
 		currentThread.status = statusFinished;
-		if (currentThread().sleepLock.isHeldByCurrentThread()) {
-			currentThread().sleepCondition.wakeAll();
-			currentThread().sleepLock.release();
-		}
+		currentThread().sleepLock.acquire();
+		currentThread().sleepCondition.wakeAll();
+		currentThread().sleepLock.release();
 		sleep();
 	}
 
