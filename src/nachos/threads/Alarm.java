@@ -2,6 +2,8 @@ package nachos.threads;
 
 import nachos.machine.*;
 
+import java.util.PriorityQueue;
+
 /**
  * Uses the hardware timer to provide preemption, and to allow threads to sleep
  * until a certain time.
@@ -14,7 +16,27 @@ public class Alarm {
      * <p><b>Note</b>: Nachos will not function correctly with more than one
      * alarm.
      */
+    private class WaitingThread implements Comparable {
+        private WaitingThread(KThread thread, long at) {
+            this.thread = thread;
+            this.wakeUpTime = at;
+            this.sleepLock = new Lock();
+            this.sleepCondition = new Condition(this.sleepLock);
+        }
+
+        public KThread thread;
+        public long wakeUpTime;
+        public Lock sleepLock;
+        public Condition sleepCondition;
+
+        @Override
+        public int compareTo(Object o) {
+            WaitingThread t = (WaitingThread) o;
+            return Long.compare(this.wakeUpTime, t.wakeUpTime);
+        }
+    }
     public Alarm() {
+        this.queue = new PriorityQueue<WaitingThread>();
 	Machine.timer().setInterruptHandler(new Runnable() {
 		public void run() { timerInterrupt(); }
 	    });
@@ -27,7 +49,16 @@ public class Alarm {
      * that should be run.
      */
     public void timerInterrupt() {
-	KThread.currentThread()._yield();
+        long now = Machine.timer().getTime();
+    while (queue.peek() != null && now >= queue.peek().wakeUpTime) {
+            WaitingThread p = queue.poll();
+            Lock l = p.sleepLock;
+            Condition c = p.sleepCondition;
+            l.acquire();
+            c.wakeAll();
+            l.release();
+        }
+        KThread.currentThread()._yield();
     }
 
     /**
@@ -45,9 +76,21 @@ public class Alarm {
      * @see	nachos.machine.Timer#getTime()
      */
     public void waitUntil(long x) {
-	// for now, cheat just to get something working (busy waiting is bad)
-	long wakeTime = Machine.timer().getTime() + x;
-	while (wakeTime > Machine.timer().getTime())
-	    KThread._yield();
+        // for now, cheat just to get something working (busy waiting is bad)
+        long wakeTime = Machine.timer().getTime() + x;
+
+        // my work
+        WaitingThread sleeper = new WaitingThread(KThread.currentThread(), wakeTime);
+
+        sleeper.sleepLock.acquire();
+        queue.add(sleeper);
+        sleeper.sleepCondition.sleep();
+        sleeper.sleepLock.release();
+
+        // built in
+//        while (wakeTime > Machine.timer().getTime())
+//            KThread._yield();
     }
+
+    private final PriorityQueue<WaitingThread> queue;
 }
