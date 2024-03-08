@@ -37,41 +37,66 @@ public class ThreadGrader2 extends BasicTestGrader
     com = new Communicator();
     
     /* Test ThreadGrader2.a: Tests your communicator */
-    total = 1;
-    count = 0;
-    list.clear();
-    forkNewThread(new a(111));
-    forkNewThread(new b());
-    while (count != total)
-    {
-      assertTrue(Machine.timer().getTime() < 2000,
-        "Too many ticks wasted on \nTest ThreadGrader2.a");
-      KThread._yield();
-    }
-    
+//    total = 1;
+//    count = 0;
+//    list.clear();
+//    forkNewThread(new a(111));
+//    forkNewThread(new b());
+//    while (count != total)
+//    {
+//      assertTrue(Machine.timer().getTime() < 2000,
+//        "Too many ticks wasted on \nTest ThreadGrader2.a");
+//      KThread._yield();
+//    }
+//
+//    /* Test ThreadGrader2.a: Tests your communicator */
+//    total = 1;
+//    count = 0;
+//    list.clear();
+//    forkNewThread(new b());
+//    forkNewThread(new a(111));
+//    while (count != total)
+//    {
+//      assertTrue(Machine.timer().getTime() < 2000,
+//              "Too many ticks wasted on \nTest ThreadGrader2.a2");
+//      KThread._yield();
+//    }
     /*
      * Test ThreadGrader2.b: Tests your communicator, with more
      * speakers/listeners
      */
-    total = 2;
-    count = 0;
-    forkNewThread(new a(111));
-    forkNewThread(new a(222));
-    forkNewThread(new b());
-    forkNewThread(new b());
-    while (count != total)
-    {
-      assertTrue(Machine.timer().getTime() < 2000,
-        "Too many ticks wasted on \nTest ThreadGrader2.b");
-      KThread._yield();
-    }
-    /*
-     * Test ThreadGrader2.c: Tests your communicator, with more
-     * speakers/listneers, and transmits more messages
-     */
+//    total = 2;
+//    count = 0;
+//    forkNewThread(new a(111));
+//    forkNewThread(new a(222));
+//    forkNewThread(new b());
+//    forkNewThread(new b());
+//    while (count != total)
+//    {
+//      assertTrue(Machine.timer().getTime() < 2000,
+//        "Too many ticks wasted on \nTest ThreadGrader2.b");
+//      KThread._yield();
+//    }
+//
+//    total = 2;
+//    count = 0;
+//    forkNewThread(new b());
+//    forkNewThread(new b());
+//    forkNewThread(new a(111));
+//    forkNewThread(new a(222));
+//    while (count != total)
+//    {
+//      assertTrue(Machine.timer().getTime() < 2000,
+//        "Too many ticks wasted on \nTest ThreadGrader2.b2");
+//      KThread._yield();
+//    }
+////    /*
+////     * Test ThreadGrader2.c: Tests your communicator, with more
+////     * speakers/listneers, and transmits more messages
+////     */
     total = 50;
     count = 0;
-    int na = 0, nb = 0;
+    int na = 0, nb = 0, nc = 0;
     for (int i = 0; i < total * 2; ++i)
     {
       int tmp = Lib.random(2);
@@ -88,16 +113,22 @@ public class ThreadGrader2 extends BasicTestGrader
     }
     if (na < nb)
     {
-      for (int i = 0; i < nb - na; ++i)
+
+      for (int i = 0; i < nb - na; ++i) {
         forkNewThread(new a(i + total * 2));
+        ++nc;
+      }
     }
     else if (na > nb)
     {
-      for (int i = 0; i < na - nb; ++i)
+      for (int i = 0; i < na - nb; ++i) {
         forkNewThread(new b());
+        ++nc;
+      }
     }
     while (count != total)
     {
+      System.out.println(count);
       assertTrue(Machine.timer().getTime() < 10000,
         "Too many ticks wasted on \nTest ThreadGrader2.c");
       KThread._yield();

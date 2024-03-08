@@ -1,6 +1,11 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import sun.awt.image.ImageWatched;
+
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Vector;
 
 /**
  * A <i>communicator</i> allows threads to synchronously exchange 32-bit
@@ -12,8 +17,9 @@ import nachos.machine.*;
 public class Communicator {
     private final Condition condition;
     private final Lock lock;
-    private int balance;
-    private Integer buf;
+    private int speakers;
+    private int listeners;
+    private LinkedList<Integer> buf;
 
     /**
      * Allocate a new communicator.
@@ -21,8 +27,9 @@ public class Communicator {
     public Communicator() {
         this.lock = new Lock();
         this.condition = new Condition(lock);
-        this.buf = null;
-        this.balance = 0;
+        this.buf = new LinkedList<>();
+        this.speakers = 0;
+        this.listeners = 0;
     }
 
     /**
@@ -37,18 +44,17 @@ public class Communicator {
      */
     public void speak(int word) {
         this.lock.acquire();
+        this.speakers++;
 
-        if (this.buf != null) { // another speaker is waiting to be paired
+        if (this.listeners > 0) {
+            this.buf.add(word);
+            this.condition.wake();
+        } else {
+            this.buf.add(word);
             this.condition.sleep();
         }
+        this.speakers--;
 
-        this.buf = word;
-
-        if (this.balance > 0) { // a listener was waiting for us
-            this.condition.wake();
-        }
-
-        this.condition.sleep(); // wait for listener, finished with a listener once we return
         this.lock.release();
     }
 
@@ -60,18 +66,16 @@ public class Communicator {
      */    
     public int listen() {
         this.lock.acquire();
+        this.listeners++;
 
-        if (this.buf == null) {
-            if (this.balance < 0) {
-                this.condition.wake();
-            }
-            this.balance++;
+        if (this.speakers <= 0) { // no speakers
             this.condition.sleep();
+        } else {
+            this.condition.wake();
         }
 
-        int ret = this.buf;
-        this.buf = null;
-        this.condition.wake();
+        int ret = this.buf.poll();
+        this.listeners--;
         this.lock.release();
 
         return ret;
