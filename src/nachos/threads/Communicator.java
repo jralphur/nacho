@@ -23,8 +23,10 @@ public class Communicator {
         }
     }
 
-    private LinkedList<WaitingThread> speakingQueue;
-    private LinkedList<WaitingThread> listeningQueue;
+    private final LinkedList<WaitingThread> speakingQueue;
+    private final LinkedList<WaitingThread> listeningQueue;
+
+    private final Lock lock;
 
     /**
      * Allocate a new communicator.
@@ -32,6 +34,7 @@ public class Communicator {
     public Communicator() {
         this.speakingQueue = new LinkedList<>();
         this.listeningQueue = new LinkedList<>();
+        this.lock = new Lock();
     }
 
     /**
@@ -45,6 +48,7 @@ public class Communicator {
      * @param	word	the integer to transfer.
      */
     public void speak(int word) {
+        this.lock.acquire();
         if (!listeningQueue.isEmpty()) { // listener available
             WaitingThread listener = listeningQueue.pop();
             listener.word = word;
@@ -55,10 +59,13 @@ public class Communicator {
             WaitingThread speaker = new WaitingThread(word);
             speaker.lock.acquire();
             speakingQueue.add(speaker);
+            this.lock.release();
             speaker.condition.sleep();
+            this.lock.acquire();
             speaker.lock.release();
         }
 
+        this.lock.release();
     }
 
     /**
@@ -68,6 +75,7 @@ public class Communicator {
      * @return	the integer transferred.
      */    
     public int listen() {
+        this.lock.acquire();
         int word;
         if (!speakingQueue.isEmpty()) {
             WaitingThread speaker = speakingQueue.pop();
@@ -79,10 +87,13 @@ public class Communicator {
             WaitingThread listener = new WaitingThread(null);
             listener.lock.acquire();
             listeningQueue.add(listener);
+            this.lock.release();
             listener.condition.sleep();
+            this.lock.acquire();
             word = listener.word;
             listener.lock.release();
         }
+        this.lock.release();
         return word;
     }
 }
