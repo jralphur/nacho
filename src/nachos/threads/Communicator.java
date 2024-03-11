@@ -1,11 +1,7 @@
 package nachos.threads;
 
-import nachos.machine.*;
-import sun.awt.image.ImageWatched;
 
 import java.util.LinkedList;
-import java.util.Queue;
-import java.util.Vector;
 
 /**
  * A <i>communicator</i> allows threads to synchronously exchange 32-bit
@@ -15,21 +11,27 @@ import java.util.Vector;
  * threads can be paired off at this point.
  */
 public class Communicator {
-    private final Condition condition;
-    private final Lock lock;
-    private int speakers;
-    private int listeners;
-    private LinkedList<Integer> buf;
+    private static class WaitingThread {
+        private final Lock lock;
+        private final Condition condition;
+        private Integer word;
+
+        public WaitingThread(Integer word) {
+            this.word = word;
+            this.lock = new Lock();
+            this.condition = new Condition(this.lock);
+        }
+    }
+
+    private LinkedList<WaitingThread> speakingQueue;
+    private LinkedList<WaitingThread> listeningQueue;
 
     /**
      * Allocate a new communicator.
      */
     public Communicator() {
-        this.lock = new Lock();
-        this.condition = new Condition(lock);
-        this.buf = new LinkedList<>();
-        this.speakers = 0;
-        this.listeners = 0;
+        this.speakingQueue = new LinkedList<>();
+        this.listeningQueue = new LinkedList<>();
     }
 
     /**
@@ -43,19 +45,20 @@ public class Communicator {
      * @param	word	the integer to transfer.
      */
     public void speak(int word) {
-        this.lock.acquire();
-        this.speakers++;
-
-        if (this.listeners > 0) {
-            this.buf.add(word);
-            this.condition.wake();
+        if (!listeningQueue.isEmpty()) { // listener available
+            WaitingThread listener = listeningQueue.pop();
+            listener.word = word;
+            listener.lock.acquire();
+            listener.condition.wake();
+            listener.lock.release();
         } else {
-            this.buf.add(word);
-            this.condition.sleep();
+            WaitingThread speaker = new WaitingThread(word);
+            speaker.lock.acquire();
+            speakingQueue.add(speaker);
+            speaker.condition.sleep();
+            speaker.lock.release();
         }
-        this.speakers--;
 
-        this.lock.release();
     }
 
     /**
@@ -65,19 +68,21 @@ public class Communicator {
      * @return	the integer transferred.
      */    
     public int listen() {
-        this.lock.acquire();
-        this.listeners++;
-
-        if (this.speakers <= 0) { // no speakers
-            this.condition.sleep();
+        int word;
+        if (!speakingQueue.isEmpty()) {
+            WaitingThread speaker = speakingQueue.pop();
+            word = speaker.word;
+            speaker.lock.acquire();
+            speaker.condition.wake();
+            speaker.lock.release();
         } else {
-            this.condition.wake();
+            WaitingThread listener = new WaitingThread(null);
+            listener.lock.acquire();
+            listeningQueue.add(listener);
+            listener.condition.sleep();
+            word = listener.word;
+            listener.lock.release();
         }
-
-        int ret = this.buf.poll();
-        this.listeners--;
-        this.lock.release();
-
-        return ret;
+        return word;
     }
 }
