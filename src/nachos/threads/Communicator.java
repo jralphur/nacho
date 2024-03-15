@@ -80,6 +80,7 @@ public class Communicator {
         if (!speakingQueue.isEmpty()) {
             WaitingThread speaker = speakingQueue.pop();
             word = speaker.word;
+
             speaker.lock.acquire();
             speaker.condition.wake();
             speaker.lock.release();
