@@ -25,6 +25,9 @@ import java.util.*;
  * particular, priority must be donated through locks, and through joins.
  */
 public class PriorityScheduler extends Scheduler {
+	// JDK 8 anti-feature, can't put this inside PriorityQueue
+	// Unique id for an instance of PriorityQueue:
+	private static long id = 1;
 	/**
 	 * The default priority for a new thread. Do not change this value.
 	 */
@@ -66,32 +69,48 @@ public class PriorityScheduler extends Scheduler {
 		 * threads to the owning thread.
 		 */
 		public boolean transferPriority;
-
-
-		// access to the lock
-		private Lock lock;
-		// who owns the lock?
-		private KThread who;
+		public long id;
 		private java.util.PriorityQueue<KThread> pq;
+
+		private KThread owner;
 		PriorityQueue(boolean transferPriority) {
 			this.transferPriority = transferPriority;
+			this.id = PriorityScheduler.id++;
 			pq = new java.util.PriorityQueue(new PriorityComparator());
+			this.owner = null;
 		}
 
 		public void waitForAccess(KThread thread) {
 			Lib.assertTrue(Machine.interrupt().disabled());
-			getThreadState(thread).waitForAccess(this);
+			if (pq.isEmpty()) {
+				this.acquire(thread);
+			} else {
+				pq.add(thread);
+				getThreadState(thread).waitForAccess(this);
+			}
 		}
 
+		public void adjustPriority(KThread thread) {
+			// a thread has changed its priority
+			// due to java.util.PriorityQueue's design, we need to remove it and add it back
+
+			this.pq.remove(thread);
+			this.pq.add(thread);
+		}
 		public void acquire(KThread thread) {
 			Lib.assertTrue(Machine.interrupt().disabled());
+			this.owner = thread;
 			getThreadState(thread).acquire(this);
 		}
 
 		public KThread nextThread() {
 			Lib.assertTrue(Machine.interrupt().disabled());
+			getThreadState(owner).release(this);
+			KThread next = pq.poll();
+			this.owner = next;
+			getThreadState(next).acquire(this);
 
-			return pq.poll();
+			return next;
 		}
 
 		/**
@@ -124,11 +143,21 @@ public class PriorityScheduler extends Scheduler {
 		/** The thread with which this object is associated. */
 		protected KThread thread;
 		/** The priority of the associated thread. */
-		protected int priority;
+		/* the tail of the queue represents the original priority
+		 * while the end is the stack of donated priorities from different threads
+		 */
+		protected LinkedList<Integer> effectivePriority;
 
+		// the longest waiting thread gets the queue if priority of threads are the same
 		protected long timeWaiting;
 
-		protected ArrayList<Object> owns;
+		// the queues that this thread owns, threads in the queues
+		// are not actually in the queue
+		protected HashMap<Long, PriorityQueue> ownedLocks;
+
+		// the queues that prevent this thread from waking up
+		// if we are donating priority, we need to recursively go through here
+		protected HashMap<Long, PriorityQueue> waitingLocks;
 		/**
 		 * Allocate a new <tt>ThreadState</tt> object and associate it with the
 		 * specified thread.
@@ -137,8 +166,11 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public ThreadState(KThread thread) {
 			this.thread = thread;
-
+			ownedLocks = new HashMap<>();
+			waitingLocks = new HashMap<>();
+			effectivePriority = new LinkedList<>();
 			setPriority(priorityDefault);
+			effectivePriority.add(priorityDefault);
 		}
 
 		/**
@@ -147,17 +179,16 @@ public class PriorityScheduler extends Scheduler {
 		 * @return	the priority of the associated thread.
 		 */
 		public int getPriority() {
-			return priority;
+			return this.effectivePriority.getFirst();
 		}
 
 		/**
 		 * Return the effective priority of the associated thread.
-		 *
+		 * The last thread represents the greatest priority.
 		 * @return	the effective priority of the associated thread.
 		 */
 		public int getEffectivePriority() {
-			// implement me
-			return priority;
+			return this.effectivePriority.getLast();
 		}
 
 		/**
@@ -166,12 +197,26 @@ public class PriorityScheduler extends Scheduler {
 		 * @param	priority	the new priority.
 		 */
 		public void setPriority(int priority) {
-			if (this.priority == priority)
+			if (this.getPriority() == priority)
 				return;
 
-			this.priority = priority;
+			this.effectivePriority.set(0, priority);
 
-			// implement me
+			int localMax = PriorityScheduler.priorityMinimum;
+			for (PriorityQueue queue : this.ownedLocks.values()) {
+				queue.adjustPriority(this.thread);
+				localMax = Math.max(localMax, queue.pickNextThread().getPriority());
+			}
+
+			for (PriorityQueue queue : this.waitingLocks.values()) {
+				queue.adjustPriority(this.thread);
+			}
+
+//			if (localMax > this.priority && KThread.currentThread() == this.thread) {
+//				KThread._yield();
+//			}
+
+
 		}
 
 		/**
@@ -188,9 +233,27 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public void waitForAccess(PriorityQueue waitQueue) {
 			this.timeWaiting = Machine.timer().getTime();
+			this.waitingLocks.put(waitQueue.id, waitQueue);
+			// donate our priority if we are waiting for a thread that has lower priority that us
+			if (this.getPriority() > getThreadState(waitQueue.owner).getEffectivePriority()) {
+				this.resolveDonation(this.getPriority(), waitQueue.owner);
+			}
 
 		}
 
+		public void resolveDonation(int toDonate, KThread other) {
+			ThreadState otherState = getThreadState(other);
+			if (this.getPriority() > otherState.getEffectivePriority()) {
+				// donate the thread priority
+				otherState.effectivePriority.push(toDonate);
+				// donate priorty to the threads that other is waiting for
+				for (PriorityQueue queue : otherState.waitingLocks.values()) {
+					otherState.resolveDonation(toDonate, queue.owner);
+				}
+
+				otherState.effectivePriority.pop();
+			}
+		}
 		/**
 		 * Called when the associated thread has acquired access to whatever is
 		 * guarded by <tt>waitQueue</tt>. This can occur either as a result of
@@ -202,9 +265,13 @@ public class PriorityScheduler extends Scheduler {
 		 * @see	nachos.threads.ThreadQueue#nextThread
 		 */
 		public void acquire(PriorityQueue waitQueue) {
-			// implement me
+			ownedLocks.put(waitQueue.id, waitQueue);
+            this.waitingLocks.remove(waitQueue.id);
 		}
 
+		public void release(PriorityQueue priorityQueue) {
+			this.ownedLocks.remove(priorityQueue.id);
+		}
 	}
 
 	/**
@@ -242,6 +309,7 @@ public class PriorityScheduler extends Scheduler {
 
 		Lib.assertTrue(priority >= priorityMinimum &&
 				priority <= priorityMaximum);
+
 
 		getThreadState(thread).setPriority(priority);
 	}
