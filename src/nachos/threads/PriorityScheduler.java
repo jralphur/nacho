@@ -169,7 +169,6 @@ public class PriorityScheduler extends Scheduler {
 			waitingLocks = new HashMap<>();
 			effectivePriority = new LinkedList<>();
 			setPriority(priorityDefault);
-			effectivePriority.add(priorityDefault);
 		}
 
 		/**
@@ -204,7 +203,9 @@ public class PriorityScheduler extends Scheduler {
 
 			this.originalPriority = priority;
 
-			this.adjustPriority();
+			if (this.effectivePriority.isEmpty()) {
+				this.adjustPriority();
+			}
 //			if (localMax > this.priority && KThread.currentThread() == this.thread) {
 //				KThread._yield();
 //			}
