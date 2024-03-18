@@ -93,7 +93,6 @@ public class PriorityScheduler extends Scheduler {
 		public void adjustPriority(KThread thread) {
 			// a thread has changed its priority
 			// due to java.util.PriorityQueue's design, we need to remove it and add it back
-
 			this.pq.remove(thread);
 			this.pq.add(thread);
 		}
@@ -147,7 +146,7 @@ public class PriorityScheduler extends Scheduler {
 		 * while the end is the stack of donated priorities from different threads
 		 */
 		protected LinkedList<Integer> effectivePriority;
-
+		protected Integer originalPriority;
 		// the longest waiting thread gets the queue if priority of threads are the same
 		protected long timeWaiting;
 
@@ -179,7 +178,7 @@ public class PriorityScheduler extends Scheduler {
 		 * @return	the priority of the associated thread.
 		 */
 		public int getPriority() {
-			return this.effectivePriority.getFirst();
+			return this.originalPriority;
 		}
 
 		/**
@@ -188,6 +187,9 @@ public class PriorityScheduler extends Scheduler {
 		 * @return	the effective priority of the associated thread.
 		 */
 		public int getEffectivePriority() {
+			if (this.effectivePriority.isEmpty()) {
+				return this.getPriority();
+			}
 			return this.effectivePriority.getLast();
 		}
 
@@ -200,18 +202,9 @@ public class PriorityScheduler extends Scheduler {
 			if (this.getPriority() == priority)
 				return;
 
-			this.effectivePriority.set(0, priority);
+			this.originalPriority = priority;
 
-			int localMax = PriorityScheduler.priorityMinimum;
-			for (PriorityQueue queue : this.ownedLocks.values()) {
-				queue.adjustPriority(this.thread);
-				localMax = Math.max(localMax, queue.pickNextThread().getPriority());
-			}
-
-			for (PriorityQueue queue : this.waitingLocks.values()) {
-				queue.adjustPriority(this.thread);
-			}
-
+			this.adjustPriority();
 //			if (localMax > this.priority && KThread.currentThread() == this.thread) {
 //				KThread._yield();
 //			}
@@ -219,6 +212,17 @@ public class PriorityScheduler extends Scheduler {
 
 		}
 
+		public void adjustPriority() {
+			int localMax = PriorityScheduler.priorityMinimum;
+//			for (PriorityQueue queue : this.ownedLocks.values()) {
+//				queue.adjustPriority(this.thread);
+//				localMax = Math.max(localMax, queue.pickNextThread().getEffectivePriority());
+//			}
+
+			for (PriorityQueue queue : this.waitingLocks.values()) {
+				queue.adjustPriority(this.thread);
+			}
+		}
 		/**
 		 * Called when <tt>waitForAccess(thread)</tt> (where <tt>thread</tt> is
 		 * the associated thread) is invoked on the specified priority queue.
@@ -235,10 +239,7 @@ public class PriorityScheduler extends Scheduler {
 			this.timeWaiting = Machine.timer().getTime();
 			this.waitingLocks.put(waitQueue.id, waitQueue);
 			// donate our priority if we are waiting for a thread that has lower priority that us
-			if (this.getPriority() > getThreadState(waitQueue.owner).getEffectivePriority()) {
-				this.resolveDonation(this.getPriority(), waitQueue.owner);
-			}
-
+			this.resolveDonation(this.getPriority(), waitQueue.owner);
 		}
 
 		public void resolveDonation(int toDonate, KThread other) {
@@ -246,15 +247,12 @@ public class PriorityScheduler extends Scheduler {
 			if (this.getPriority() > otherState.getEffectivePriority()) {
 				// donate the thread priority
 				otherState.effectivePriority.push(toDonate);
-				this.effectivePriority.push(otherState.getEffectivePriority());
+
+				otherState.adjustPriority();
 				// donate priority to the threads that other is waiting for
 				for (PriorityQueue queue : otherState.waitingLocks.values()) {
 					otherState.resolveDonation(toDonate, queue.owner);
 				}
-
-				// restore the original priority
-				otherState.effectivePriority.pop();
-				this.effectivePriority.pop();
 			}
 		}
 		/**
@@ -274,6 +272,9 @@ public class PriorityScheduler extends Scheduler {
 
 		public void release(PriorityQueue priorityQueue) {
 			this.ownedLocks.remove(priorityQueue.id);
+			if (waitingLocks.isEmpty()) {
+				this.effectivePriority.clear();
+			}
 		}
 	}
 
