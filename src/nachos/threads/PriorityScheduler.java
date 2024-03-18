@@ -70,13 +70,13 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public boolean transferPriority;
 		public long id;
-		private java.util.PriorityQueue<KThread> pq;
+		private final java.util.PriorityQueue<KThread> pq;
 
 		private KThread owner;
 		PriorityQueue(boolean transferPriority) {
 			this.transferPriority = transferPriority;
 			this.id = PriorityScheduler.id++;
-			pq = new java.util.PriorityQueue(new PriorityComparator());
+			pq = new java.util.PriorityQueue<>(new PriorityComparator());
 			this.owner = null;
 		}
 
@@ -246,7 +246,7 @@ public class PriorityScheduler extends Scheduler {
 			if (this.getPriority() > otherState.getEffectivePriority()) {
 				// donate the thread priority
 				otherState.effectivePriority.push(toDonate);
-				// donate priorty to the threads that other is waiting for
+				// donate priority to the threads that other is waiting for
 				for (PriorityQueue queue : otherState.waitingLocks.values()) {
 					otherState.resolveDonation(toDonate, queue.owner);
 				}
