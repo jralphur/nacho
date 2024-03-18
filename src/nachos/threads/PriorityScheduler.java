@@ -246,12 +246,15 @@ public class PriorityScheduler extends Scheduler {
 			if (this.getPriority() > otherState.getEffectivePriority()) {
 				// donate the thread priority
 				otherState.effectivePriority.push(toDonate);
+				this.effectivePriority.push(otherState.getEffectivePriority());
 				// donate priority to the threads that other is waiting for
 				for (PriorityQueue queue : otherState.waitingLocks.values()) {
 					otherState.resolveDonation(toDonate, queue.owner);
 				}
 
+				// restore the original priority
 				otherState.effectivePriority.pop();
+				this.effectivePriority.pop();
 			}
 		}
 		/**
