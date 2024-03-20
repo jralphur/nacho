@@ -50,7 +50,7 @@ public class PriorityScheduler extends Scheduler {
 			ThreadState s2 = (ThreadState) o2.schedulingState;
 			// highest and oldest priority goes to the top
 			if (s1.getEffectivePriority() == s2.getEffectivePriority()) {
-				return Long.compare(s2.timeWaiting, s1.timeWaiting);
+				return Long.compare(s1.timeWaiting, s2.timeWaiting);
 			}
 
 			if (s1.getEffectivePriority() < s2.getEffectivePriority()) {
@@ -82,11 +82,11 @@ public class PriorityScheduler extends Scheduler {
 
 		public void waitForAccess(KThread thread) {
 			Lib.assertTrue(Machine.interrupt().disabled());
-			pq.add(thread);
 			getThreadState(thread).waitForAccess(this);
+			pq.add(thread);
 		}
 
-		public void adjustPriority(KThread thread) {
+		private void adjustPriority(KThread thread) {
 			// a thread has changed its priority
 			// due to java.util.PriorityQueue's design, we need to remove it and add it back
 			this.pq.remove(thread);
@@ -203,10 +203,15 @@ public class PriorityScheduler extends Scheduler {
 			if (this.getPriority() == priority)
 				return;
 
-			this.originalPriority = priority;
+			while (priority > this.getEffectivePriority() && !this.effectivePriority.isEmpty()) {
+				this.effectivePriority.pop();
+			}
 
-			if (this.effectivePriority.isEmpty()) {
-				this.adjustPriority();
+			this.originalPriority = priority;
+			this.adjustPriority();
+
+			for (PriorityQueue q : waitingLocks.values()) {
+				this.resolveDonation(priority, q.owner);
 			}
 //			if (localMax > this.priority && KThread.currentThread() == this.thread) {
 //				KThread._yield();
@@ -249,7 +254,7 @@ public class PriorityScheduler extends Scheduler {
 
 		private void resolveDonation(int toDonate, KThread other) {
 			ThreadState otherState = getThreadState(other);
-			if (this.getPriority() > otherState.getEffectivePriority()) {
+			if (this.getEffectivePriority() > otherState.getEffectivePriority()) {
 				// donate the thread priority
 				otherState.effectivePriority.push(toDonate);
 
