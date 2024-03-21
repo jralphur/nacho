@@ -211,7 +211,7 @@ public class PriorityScheduler extends Scheduler {
 			this.adjustPriority();
 
 			if (waitingLocks != null) {
-				this.resolveDonation(priority, waitingLocks.owner);
+				this.resolveDonation(this.waitingLocks, priority, waitingLocks.owner);
 			}
 //			if (localMax > this.priority && KThread.currentThread() == this.thread) {
 //				KThread._yield();
@@ -246,20 +246,22 @@ public class PriorityScheduler extends Scheduler {
 			waitingLocks = waitQueue;
 			// donate our priority if we are waiting for a thread that has lower priority that us
 			if (waitQueue.owner != null) {
-				this.resolveDonation(this.getPriority(), waitQueue.owner);
+				this.resolveDonation(waitQueue, this.getPriority(), waitQueue.owner);
 			}
 		}
 
-		private void resolveDonation(int toDonate, KThread other) {
+		private void resolveDonation(PriorityQueue queue, int toDonate, KThread other) {
 			ThreadState otherState = getThreadState(other);
 			if (this.getEffectivePriority() > otherState.getEffectivePriority()) {
 				// donate the thread priority
-				otherState.effectivePriority.push(toDonate);
+				if (queue.transferPriority) {
+					otherState.effectivePriority.push(toDonate);
+				}
 
 				otherState.adjustPriority();
 				// donate priority to the threads that other is waiting for
 				if (otherState.waitingLocks != null)
-					otherState.resolveDonation(toDonate, otherState.waitingLocks.owner);
+					otherState.resolveDonation(otherState.waitingLocks, toDonate, otherState.waitingLocks.owner);
 			}
 		}
 		/**
