@@ -300,14 +300,18 @@ public class PriorityScheduler extends Scheduler {
 			} else {
 				// The newest effective priority should be the equal to the highest priority
 				// of the queues it still owns
-				if (!this.donatedPriorities.isEmpty() && priorityQueue == this.donatedPriorities.peek().context) {
-					while (!this.donatedPriorities.isEmpty() && priorityQueue == this.donatedPriorities.peek().context) {
-						this.donatedPriorities.poll();
-					}
-					for (PriorityQueue queue : this.ownedLocks.values()) {
-						queue.adjustPriority(this.thread);
+				ArrayList<DonationContext> toRemove = new ArrayList<>();
+				for (DonationContext ct : this.donatedPriorities) {
+					if (ct.context == priorityQueue) {
+						toRemove.add(ct);
 					}
 				}
+
+				for (DonationContext ct : toRemove) {
+					this.donatedPriorities.remove(ct);
+				}
+
+				this.adjustPriority();
 			}
 		}
 	}
