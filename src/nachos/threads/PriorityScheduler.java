@@ -256,9 +256,9 @@ public class PriorityScheduler extends Scheduler {
 				// donate the thread priority
 				if (queue.transferPriority) {
 					otherState.effectivePriority.push(toDonate);
+					otherState.adjustPriority();
 				}
 
-				otherState.adjustPriority();
 				// donate priority to the threads that other is waiting for
 				if (otherState.waitingLocks != null)
 					otherState.resolveDonation(otherState.waitingLocks, toDonate, otherState.waitingLocks.owner);
