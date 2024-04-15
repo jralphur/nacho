@@ -142,6 +142,7 @@ public class PriorityScheduler extends Scheduler {
 		public void print() {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			System.out.println(this.pq);
+
 		}
 
 	}
@@ -261,6 +262,7 @@ public class PriorityScheduler extends Scheduler {
 			if (waitQueue.owner != null) {
 				this.resolveDonation(waitQueue, this,  waitQueue.owner);
 			}
+
 		}
 
 		private void resolveDonation(PriorityQueue queue, ThreadState root, KThread other) {

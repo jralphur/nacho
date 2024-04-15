@@ -86,20 +86,20 @@ public class UserProcess {
      * @return	the string read, or <tt>null</tt> if no null terminator was
      *		found.
      */
-    public String readVirtualMemoryString(int vaddr, int maxLength) {
-	Lib.assertTrue(maxLength >= 0);
+	public String readVirtualMemoryString(int vaddr, int maxLength) {
+		Lib.assertTrue(maxLength >= 0);
 
-	byte[] bytes = new byte[maxLength+1];
+		byte[] bytes = new byte[maxLength+1];
 
-	int bytesRead = readVirtualMemory(vaddr, bytes);
+		int bytesRead = readVirtualMemory(vaddr, bytes);
 
-	for (int length=0; length<bytesRead; length++) {
-	    if (bytes[length] == 0)
-		return new String(bytes, 0, length);
+		for (int length=0; length<bytesRead; length++) {
+			if (bytes[length] == 0)
+				return new String(bytes, 0, length);
+		}
+
+		return null;
 	}
-
-	return null;
-    }
 
     /**
      * Transfer data from this process's virtual memory to all of the specified
@@ -346,6 +346,28 @@ public class UserProcess {
 	return 0;
     }
 
+	private int handleOpen(int charptr) {
+
+	}
+
+	private int handleCreate(int charptr) {
+
+	}
+
+	private int handleUnlink(int charptr) {
+	}
+
+	private int handleClose(int fd) {
+
+	}
+
+	private int handleRead(int fd, int voidptr, int count) {
+
+	}
+
+	private int handleWrite(int fd, int voidptr, int count) {
+
+	}
 
     private static final int
         syscallHalt = 0,
@@ -387,18 +409,39 @@ public class UserProcess {
      * @param	a3	the fourth syscall argument.
      * @return	the value to be returned to the user.
      */
-    public int handleSyscall(int syscall, int a0, int a1, int a2, int a3) {
-	switch (syscall) {
-	case syscallHalt:
-	    return handleHalt();
+	public int handleSyscall(int syscall, int a0, int a1, int a2, int a3) {
+		int ptr, fd;
+		switch (syscall) {
+			case syscallHalt:
+				return handleHalt();
+			case syscallOpen:
+				ptr = a0;
+				return handleOpen(ptr);
+			case syscallClose:
+				fd = a0;
+				return handleClose(fd);
+			case syscallUnlink:
+				ptr = a0;
+				return handleUnlink(ptr);
+			case syscallRead:
+				fd = a0;
+				ptr = a1;
+                return handleRead(fd, ptr, a2);
+			case syscallWrite:
+				fd = a0;
+				ptr = a1;
+				return handleWrite(fd, ptr, a2);
+			case syscallCreate:
+				ptr = a0;
+				return handleCreate(ptr);
 
 
-	default:
-	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
-	    Lib.assertNotReached("Unknown system call!");
+			default:
+				Lib.debug(dbgProcess, "Unknown syscall " + syscall);
+				Lib.assertNotReached("Unknown system call!");
+		}
+		return 0;
 	}
-	return 0;
-    }
 
     /**
      * Handle a user exception. Called by

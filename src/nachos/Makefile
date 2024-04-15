@@ -14,7 +14,7 @@ machine =	Lib Config Stats Machine TCB \
 
 security =	Privilege NachosSecurityManager
 
-ag = AutoGrader BasicTestGrader ThreadGrader1 ThreadGrader2 ThreadGrader3 ThreadGrader4
+ag = AutoGrader BasicTestGrader ThreadGrader1 ThreadGrader2 ThreadGrader3 ThreadGrader4 ThreadGrader5 ThreadGrader6 ThreadGrader7
 
 
 threads =	ThreadedKernel KThread Alarm \
