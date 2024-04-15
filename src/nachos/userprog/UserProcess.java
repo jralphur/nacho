@@ -1,10 +1,15 @@
 package nachos.userprog;
 
 import nachos.machine.*;
+import nachos.network.NetProcess;
 import nachos.threads.*;
 import nachos.userprog.*;
+import nachos.vm.VMProcess;
 
 import java.io.EOFException;
+import java.io.FileDescriptor;
+import java.util.ArrayList;
+import java.util.Stack;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -15,19 +20,22 @@ import java.io.EOFException;
  * This class is extended by other classes to support additional functionality
  * (such as additional syscalls).
  *
- * @see	nachos.vm.VMProcess
- * @see	nachos.network.NetProcess
+ * @see	VMProcess
+ * @see	NetProcess
  */
 public class UserProcess {
     /**
      * Allocate a new process.
      */
-    public UserProcess() {
-	int numPhysPages = Machine.processor().getNumPhysPages();
-	pageTable = new TranslationEntry[numPhysPages];
-	for (int i=0; i<numPhysPages; i++)
-	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
-    }
+	public UserProcess() {
+		int numPhysPages = Machine.processor().getNumPhysPages();
+		pageTable = new TranslationEntry[numPhysPages];
+		for (int i=0; i<numPhysPages; i++)
+			pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+		fds = new FDTable();
+	}
+
+
     
     /**
      * Allocate and return a new process of the correct class. The class name
@@ -346,27 +354,86 @@ public class UserProcess {
 	return 0;
     }
 
-	private int handleOpen(int charptr) {
 
+	private int handleFile(int charptr, boolean trunc) {
+		String filename = this.readVirtualMemoryString(charptr, filenameStrLength);
+		if (filename == null) {
+			return -1;
+		}
+
+		OpenFile file = this.fs.open(filename, trunc);
+
+		if (file == null) {
+			return -1;
+		}
+
+		return this.fds.offer(file);
 	}
 
+	private int handleOpen(int charptr) {
+		return handleFile(charptr, false);
+	}
 	private int handleCreate(int charptr) {
-
+		return handleFile(charptr, true);
 	}
 
 	private int handleUnlink(int charptr) {
+		String fn = this.readVirtualMemoryString(charptr, filenameStrLength);
+		if (fn == null) {
+			return -1;
+		}
+
+		boolean status = this.fs.remove(fn);
+
+		if (status) {
+			return 0;
+		}
+
+		return -1;
 	}
 
 	private int handleClose(int fd) {
+		boolean status = this.fds.close(fd);
 
+		if (status) {
+			return 0;
+		}
+
+		return -1;
 	}
 
 	private int handleRead(int fd, int voidptr, int count) {
+		OpenFile file = this.fds.get(fd);
 
+		if (file == null) {
+			return -1;
+		}
+
+		byte[] buf = new byte[count];
+		int n = file.read(buf, 0 , count);
+		if (n < 0) {
+			return -1;
+		}
+
+		n = this.writeVirtualMemory(voidptr, buf);
+		return n;
 	}
 
 	private int handleWrite(int fd, int voidptr, int count) {
+		OpenFile file = this.fds.get(fd);
 
+		if (file == null) {
+			return -1;
+		}
+
+		byte[] buf = new byte[count];
+		int n = this.readVirtualMemory(voidptr, buf);
+		if (n < 0) {
+			return n - 1;
+		}
+		n = file.write(buf, 0, count);
+
+		return n;
 	}
 
     private static final int
@@ -473,6 +540,47 @@ public class UserProcess {
 	}
     }
 
+	private class FDTable {
+		public FDTable() {
+			this.table = new ArrayList<>(16);
+			this.table.add(UserKernel.console.openForReading());
+			this.table.add(UserKernel.console.openForWriting());
+			this.firstAvailable = new java.util.PriorityQueue<>();
+		}
+
+		// give the next available fd slot
+		public Integer offer(OpenFile file) {
+			if (firstAvailable.isEmpty()) {
+				this.table.add(file);
+				return this.table.size() - 1;
+			} else {
+				int index = this.firstAvailable.poll();
+				this.table.set(index, file);
+				return index;
+			}
+		}
+
+		public OpenFile get(int fd) {
+			return this.table.get(fd);
+		}
+
+		public boolean close(int fd) {
+			if (fd >= this.table.size() || this.table.get(fd) == null) {
+				return false;
+			}
+
+			table.get(fd).close();
+			this.table.set(fd, null);
+			if (fd < this.table.size()) {
+				this.firstAvailable.add(fd);
+			}
+
+			return true;
+		}
+
+		private final ArrayList<OpenFile> table;
+		private final java.util.PriorityQueue<Integer> firstAvailable;
+	}
     /** The program being run by this process. */
     protected Coff coff;
 
@@ -489,4 +597,8 @@ public class UserProcess {
 	
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
+	private static final int filenameStrLength = 256;
+
+	private final FDTable fds;
+	private final StubFileSystem fs = (StubFileSystem) ThreadedKernel.fileSystem;
 }

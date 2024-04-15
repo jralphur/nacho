@@ -73,23 +73,23 @@ public class StubFileSystem implements FileSystem {
 
     private class StubOpenFile extends OpenFileWithPosition {
 	StubOpenFile(final String name, final boolean truncate)
-	    throws IOException {
-	    super(StubFileSystem.this, name);
+			throws IOException {
+		super(StubFileSystem.this, name);
 
-	    final File f = new File(directory, name);
+		final File f = new File(directory, name);
 
-	    if (openCount == maxOpenFiles)
-		throw new IOException();
+		if (openCount == maxOpenFiles)
+			throw new IOException();
 
-	    privilege.doPrivileged(new Runnable() {
-		public void run() { getRandomAccessFile(f, truncate); }
-	    });
+		privilege.doPrivileged(new Runnable() {
+			public void run() { getRandomAccessFile(f, truncate); }
+		});
 
-	    if (file == null)
-		throw new IOException();
+		if (file == null)
+			throw new IOException();
 
-	    open = true;
-	    openCount++;
+		open = true;
+		openCount++;
 	}
 
 	private void getRandomAccessFile(File f, boolean truncate) {
