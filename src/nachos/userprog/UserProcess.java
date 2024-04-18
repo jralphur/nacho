@@ -35,7 +35,6 @@ public class UserProcess {
 		fds = new FDTable();
 	}
 
-
     
     /**
      * Allocate and return a new process of the correct class. The class name
@@ -436,6 +435,14 @@ public class UserProcess {
 		return n;
 	}
 
+	private int handleExit(int status) {
+		for (int i = 0; i < fds.size(); i++) {
+			fds.close(i);
+		}
+
+		return handleHalt();
+	}
+
     private static final int
         syscallHalt = 0,
 	syscallExit = 1,
@@ -501,6 +508,8 @@ public class UserProcess {
 			case syscallCreate:
 				ptr = a0;
 				return handleCreate(ptr);
+			case syscallExit:
+				return handleExit(a0);
 
 
 			default:
@@ -540,7 +549,7 @@ public class UserProcess {
 	}
     }
 
-	private class FDTable {
+	private static class FDTable {
 		public FDTable() {
 			this.table = new ArrayList<>(16);
 			this.table.add(UserKernel.console.openForReading());
@@ -578,6 +587,9 @@ public class UserProcess {
 			return true;
 		}
 
+		public int size() {
+			return this.table.size();
+		}
 		private final ArrayList<OpenFile> table;
 		private final java.util.PriorityQueue<Integer> firstAvailable;
 	}
