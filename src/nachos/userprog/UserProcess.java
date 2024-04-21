@@ -414,7 +414,7 @@ public class UserProcess {
 			return -1;
 		}
 
-		n = this.writeVirtualMemory(voidptr, buf);
+		n = this.writeVirtualMemory(voidptr, buf, 0, n);
 		return n;
 	}
 
