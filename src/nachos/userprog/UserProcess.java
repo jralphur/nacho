@@ -442,7 +442,7 @@ public class UserProcess {
 
 		this.coff.close();
 		UThread.finish();
-		return handleHalt();
+		return 0;
 	}
 
     private static final int
