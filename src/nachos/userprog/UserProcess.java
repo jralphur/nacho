@@ -440,6 +440,8 @@ public class UserProcess {
 			fds.close(i);
 		}
 
+		this.coff.close();
+		UThread.finish();
 		return handleHalt();
 	}
 
